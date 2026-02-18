@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joplin Email-to-Note — GitHub Action Configurator</title>
+  <meta name="description" content="Configure your GitHub Action to forward emails to Joplin notes via cloud storage.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a2133;
+      --bg-input: #0d1321;
+      --border: #2a3a55;
+      --border-focus: #6366f1;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background mesh */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 20% 20%, rgba(99,102,241,0.08), transparent),
+        radial-gradient(ellipse 500px 300px at 80% 60%, rgba(139,92,246,0.06), transparent),
+        radial-gradient(ellipse 400px 400px at 50% 90%, rgba(59,130,246,0.05), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeSlideUp 0.6s ease-out;
+    }
+
+    .header__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-hover);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+
+    .header__badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      font-weight: 300;
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Steps indicator */
+    .steps {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 40px;
+      animation: fadeSlideUp 0.6s ease-out 0.1s both;
+    }
+
+    .step-dot {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .step-dot.active {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent-hover);
+      box-shadow: 0 0 16px rgba(99,102,241,0.2);
+    }
+
+    .step-dot.done {
+      border-color: var(--success);
+      background: rgba(34,197,94,0.1);
+      color: var(--success);
+    }
+
+    .step-connector {
+      width: 40px;
+      height: 2px;
+      align-self: center;
+      background: var(--border);
+      border-radius: 1px;
+      transition: background 0.3s ease;
+    }
+
+    .step-connector.done {
+      background: var(--success);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+      animation: fadeSlideUp 0.5s ease-out 0.2s both;
+      transition: border-color 0.3s ease;
+    }
+
+    .card:hover { border-color: rgba(99,102,241,0.3); }
+
+    .card__title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card__desc {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* Form elements */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: var(--text-muted);
+      font-family: 'Sora', sans-serif;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Sync target selector */
+    .target-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .target-card {
+      padding: 16px;
+      background: var(--bg-input);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .target-card:hover {
+      border-color: rgba(99,102,241,0.4);
+      transform: translateY(-2px);
+    }
+
+    .target-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      box-shadow: 0 4px 20px rgba(99,102,241,0.15);
+    }
+
+    .target-card__icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+
+    .target-card__name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .target-card__desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .target-card__badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge--oauth {
+      background: rgba(245,158,11,0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245,158,11,0.3);
+    }
+
+    /* Section visibility */
+    .config-section { display: none; }
+    .config-section.visible { display: block; }
+
+    /* Output area */
+    .output-container {
+      position: relative;
+    }
+
+    .output-code {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    /* Tab system for output */
+    .output-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .output-tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      color: var(--text-muted);
+      font-family: 'Sora', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .output-tab:hover { color: var(--text-secondary); }
+
+    .output-tab.active {
+      background: var(--bg-input);
+      border-color: var(--accent);
+      border-bottom-color: transparent;
+      color: var(--accent-hover);
+    }
+
+    .output-panel { display: none; }
+    .output-panel.active { display: block; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Sora', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .btn--primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.3);
+    }
+
+    .btn--primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99,102,241,0.4);
+    }
+
+    .btn--ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn--ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent-hover);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    /* Copy notification */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success);
+      color: #0a0e17;
+      padding: 12px 24px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.85rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Help callout */
+    .callout {
+      padding: 16px 20px;
+      border-radius: var(--radius-sm);
+      margin-top: 16px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    .callout--info {
+      background: rgba(59,130,246,0.08);
+      border-left: 3px solid #3b82f6;
+      color: #93c5fd;
+    }
+
+    .callout--warning {
+      background: rgba(245,158,11,0.08);
+      border-left: 3px solid var(--warning);
+      color: #fcd34d;
+    }
+
+    /* Animations */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .app { padding: 24px 16px 60px; }
+      .card { padding: 20px; }
+      .target-grid { grid-template-columns: 1fr 1fr; }
+      .btn-group { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__badge">GitHub Action Configurator</div>
+    <h1>Joplin Email‑to‑Note</h1>
+    <p>Configure your sync target and generate everything you need to get the GitHub Action running.</p>
+  </header>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step-dot active" id="stepDot1" onclick="goToStep(1)">1</div>
+    <div class="step-connector" id="stepConn1"></div>
+    <div class="step-dot" id="stepDot2" onclick="goToStep(2)">2</div>
+    <div class="step-connector" id="stepConn2"></div>
+    <div class="step-dot" id="stepDot3" onclick="goToStep(3)">3</div>
+  </div>
+
+  <!-- Step 1: Choose sync target -->
+  <div class="card" id="step1">
+    <div class="card__title">① Choose Sync Target</div>
+    <div class="card__desc">Where should your notes be stored? Pick the cloud storage that your Joplin client syncs with.</div>
+
+    <div class="target-grid">
+      <div class="target-card selected" data-target="JoplinServer" onclick="selectTarget(this)">
+        <div class="target-card__icon">🔒</div>
+        <div class="target-card__name">Joplin Server</div>
+        <div class="target-card__desc">Self-hosted or Joplin Cloud</div>
+      </div>
+      <div class="target-card" data-target="WebDAV" onclick="selectTarget(this)">
+        <div class="target-card__icon">☁️</div>
+        <div class="target-card__name">WebDAV</div>
+        <div class="target-card__desc">Nextcloud, ownCloud, etc.</div>
+      </div>
+      <div class="target-card" data-target="OneDrive" onclick="selectTarget(this)">
+        <span class="target-card__badge badge--oauth">OAuth</span>
+        <div class="target-card__icon">📁</div>
+        <div class="target-card__name">OneDrive</div>
+        <div class="target-card__desc">Microsoft cloud storage</div>
+      </div>
+      <div class="target-card" data-target="GoogleDrive" onclick="selectTarget(this)">
+        <span class="target-card__badge badge--oauth">OAuth</span>
+        <div class="target-card__icon">📂</div>
+        <div class="target-card__name">Google Drive</div>
+        <div class="target-card__desc">Google cloud storage</div>
+      </div>
+    </div>
+
+    <div class="callout callout--warning" id="oauthWarning" style="display:none">
+      ⚠️ <strong>OAuth required.</strong> OneDrive and Google Drive require OAuth tokens. You'll need to run the OAuth flow once to get tokens, then paste them as GitHub Secrets. See the <a href="https://github.com/khuongduy354/joplin-sync-lib#usage" style="color:var(--warning)">joplin-sync-lib docs</a> for the auth flow.
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn--primary" onclick="goToStep(2)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Credentials -->
+  <div class="card" id="step2" style="display:none">
+    <div class="card__title">② Enter Credentials</div>
+    <div class="card__desc">These will become GitHub Secrets. Your values never leave this page.</div>
+
+    <!-- Joplin Server fields -->
+    <div class="config-section visible" id="fields-JoplinServer">
+      <div class="form-group">
+        <label for="jsUrl">Server URL</label>
+        <input type="url" id="jsUrl" placeholder="https://your-joplin-server.com" value="http://localhost:22300">
+      </div>
+      <div class="form-group">
+        <label for="jsUser">Username / Email</label>
+        <input type="text" id="jsUser" placeholder="admin@localhost" value="admin@localhost">
+      </div>
+      <div class="form-group">
+        <label for="jsPass">Password</label>
+        <input type="password" id="jsPass" placeholder="your password" value="admin">
+      </div>
+    </div>
+
+    <!-- WebDAV fields -->
+    <div class="config-section" id="fields-WebDAV">
+      <div class="form-group">
+        <label for="wdUrl">WebDAV URL</label>
+        <input type="url" id="wdUrl" placeholder="https://nextcloud.example.com/remote.php/dav/files/user/Joplin">
+      </div>
+      <div class="form-group">
+        <label for="wdUser">Username</label>
+        <input type="text" id="wdUser" placeholder="your username">
+      </div>
+      <div class="form-group">
+        <label for="wdPass">Password</label>
+        <input type="password" id="wdPass" placeholder="your password">
+      </div>
+    </div>
+
+    <!-- OneDrive fields -->
+    <div class="config-section" id="fields-OneDrive">
+      <div class="form-group">
+        <label for="odClientId">Client ID</label>
+        <input type="text" id="odClientId" placeholder="Azure App Client ID">
+      </div>
+      <div class="form-group">
+        <label for="odClientSecret">Client Secret</label>
+        <input type="password" id="odClientSecret" placeholder="Azure App Client Secret">
+      </div>
+      <div class="form-group">
+        <label for="odAuthToken">Auth Token (JSON)</label>
+        <textarea id="odAuthToken" placeholder='{"access_token":"...","refresh_token":"...","token_type":"Bearer","expires_in":3600}'></textarea>
+        <div class="hint">Run the OAuth flow from joplin-sync-lib to obtain this token.</div>
+      </div>
+    </div>
+
+    <!-- Google Drive fields -->
+    <div class="config-section" id="fields-GoogleDrive">
+      <div class="form-group">
+        <label for="gdClientId">Client ID</label>
+        <input type="text" id="gdClientId" placeholder="Google OAuth Client ID">
+      </div>
+      <div class="form-group">
+        <label for="gdClientSecret">Client Secret</label>
+        <input type="password" id="gdClientSecret" placeholder="Google OAuth Client Secret">
+      </div>
+      <div class="form-group">
+        <label for="gdAuthToken">Auth Token (JSON)</label>
+        <textarea id="gdAuthToken" placeholder='{"access_token":"...","refresh_token":"...","token_type":"Bearer","expires_in":3600}'></textarea>
+      </div>
+    </div>
+
+    <!-- Common fields -->
+    <div class="form-group" style="margin-top:16px; border-top:1px solid var(--border); padding-top:20px;">
+      <label for="parentFolder">Target Notebook ID <span style="font-weight:400;text-transform:none">(optional)</span></label>
+      <input type="text" id="parentFolder" placeholder="Leave empty for root notebook">
+      <div class="hint">You can find notebook IDs in Joplin Desktop → Right-click notebook → Copy ID</div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn--ghost" onclick="goToStep(1)">← Back</button>
+      <button class="btn btn--primary" onclick="generate()">Generate Config →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Output -->
+  <div class="card" id="step3" style="display:none">
+    <div class="card__title">③ Generated Configuration</div>
+    <div class="card__desc">Copy these to your GitHub repository.</div>
+
+    <div class="output-tabs">
+      <button class="output-tab active" onclick="switchTab('secrets')">GitHub Secrets</button>
+      <button class="output-tab" onclick="switchTab('workflow')">Workflow YAML</button>
+      <button class="output-tab" onclick="switchTab('curl')">Test (curl)</button>
+    </div>
+
+    <div class="output-container">
+      <div class="output-panel active" id="panel-secrets">
+        <div class="output-code" id="output-secrets"></div>
+      </div>
+      <div class="output-panel" id="panel-workflow">
+        <div class="output-code" id="output-workflow"></div>
+      </div>
+      <div class="output-panel" id="panel-curl">
+        <div class="output-code" id="output-curl"></div>
+      </div>
+    </div>
+
+    <div class="callout callout--info">
+      <strong>Next steps:</strong><br>
+      1. Go to your GitHub repo → <strong>Settings → Secrets → Actions</strong><br>
+      2. Add each secret listed above<br>
+      3. The workflow file is already at <code>.github/workflows/email-to-note.yml</code><br>
+      4. Set up the <strong>Google Apps Script</strong> or <strong>Zapier</strong> to trigger it
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn--ghost" onclick="goToStep(2)">← Back</button>
+      <button class="btn btn--primary" onclick="copySecrets()">📋 Copy Secrets</button>
+      <button class="btn btn--ghost" onclick="copyCurl()">📋 Copy curl</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+  // ── State ──
+  let currentStep = 1;
+  let selectedTarget = 'JoplinServer';
+
+  // ── Navigation ──
+  function goToStep(step) {
+    currentStep = step;
+    document.getElementById('step1').style.display = step === 1 ? 'block' : 'none';
+    document.getElementById('step2').style.display = step === 2 ? 'block' : 'none';
+    document.getElementById('step3').style.display = step === 3 ? 'block' : 'none';
+
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById('stepDot' + i);
+      dot.classList.remove('active', 'done');
+      if (i < step) dot.classList.add('done');
+      if (i === step) dot.classList.add('active');
+    }
+    for (let i = 1; i <= 2; i++) {
+      const conn = document.getElementById('stepConn' + i);
+      conn.classList.toggle('done', i < step);
+    }
+  }
+
+  // ── Target selection ──
+  function selectTarget(el) {
+    document.querySelectorAll('.target-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedTarget = el.dataset.target;
+
+    // Toggle field visibility
+    document.querySelectorAll('.config-section').forEach(s => s.classList.remove('visible'));
+    const section = document.getElementById('fields-' + selectedTarget);
+    if (section) section.classList.add('visible');
+
+    // OAuth warning
+    const warn = document.getElementById('oauthWarning');
+    warn.style.display = (selectedTarget === 'OneDrive' || selectedTarget === 'GoogleDrive') ? 'block' : 'none';
+  }
+
+  // ── Generate ──
+  function generate() {
+    const secrets = [];
+    secrets.push({ key: 'SYNC_TARGET', value: selectedTarget });
+
+    if (selectedTarget === 'JoplinServer') {
+      secrets.push({ key: 'JOPLIN_SERVER_URL', value: document.getElementById('jsUrl').value });
+      secrets.push({ key: 'JOPLIN_SERVER_USERNAME', value: document.getElementById('jsUser').value });
+      secrets.push({ key: 'JOPLIN_SERVER_PASSWORD', value: document.getElementById('jsPass').value });
+    } else if (selectedTarget === 'WebDAV') {
+      secrets.push({ key: 'WEBDAV_URL', value: document.getElementById('wdUrl').value });
+      secrets.push({ key: 'WEBDAV_USERNAME', value: document.getElementById('wdUser').value });
+      secrets.push({ key: 'WEBDAV_PASSWORD', value: document.getElementById('wdPass').value });
+    } else if (selectedTarget === 'OneDrive') {
+      secrets.push({ key: 'ONEDRIVE_CLIENT_ID', value: document.getElementById('odClientId').value });
+      secrets.push({ key: 'ONEDRIVE_CLIENT_SECRET', value: document.getElementById('odClientSecret').value });
+      secrets.push({ key: 'ONEDRIVE_AUTH_TOKEN', value: document.getElementById('odAuthToken').value });
+    } else if (selectedTarget === 'GoogleDrive') {
+      secrets.push({ key: 'GOOGLEDRIVE_CLIENT_ID', value: document.getElementById('gdClientId').value });
+      secrets.push({ key: 'GOOGLEDRIVE_CLIENT_SECRET', value: document.getElementById('gdClientSecret').value });
+      secrets.push({ key: 'GOOGLEDRIVE_AUTH_TOKEN', value: document.getElementById('gdAuthToken').value });
+    }
+
+    const parentFolder = document.getElementById('parentFolder').value;
+    if (parentFolder) {
+      secrets.push({ key: 'JOPLIN_PARENT_FOLDER_ID', value: parentFolder });
+    }
+
+    // Secrets output
+    let secretsText = '# Add these as GitHub Repository Secrets\n';
+    secretsText += '# Settings → Secrets and variables → Actions → New repository secret\n\n';
+    secrets.forEach(s => {
+      secretsText += `${s.key}=${s.value}\n`;
+    });
+    document.getElementById('output-secrets').textContent = secretsText;
+
+    // Workflow output (simplified — the full one is already in the repo)
+    const workflowText = `# .github/workflows/email-to-note.yml
+# This file is already included in the repository.
+# No changes needed — it reads all config from GitHub Secrets.
+#
+# The workflow triggers on:
+#   • repository_dispatch (type: "email-to-note") — from webhooks
+#   • workflow_dispatch — manual testing
+#
+# Your sync target: ${selectedTarget}
+# Secrets configured: ${secrets.map(s => s.key).join(', ')}`;
+    document.getElementById('output-workflow').textContent = workflowText;
+
+    // Curl test command
+    const curlText = `# Test the workflow with a sample email
+# Replace YOUR_USERNAME and YOUR_GITHUB_TOKEN
+
+curl -X POST \\
+  -H "Accept: application/vnd.github.v3+json" \\
+  -H "Authorization: Bearer YOUR_GITHUB_TOKEN" \\
+  https://api.github.com/repos/YOUR_USERNAME/joplin-email-to-note/dispatches \\
+  -d '{
+    "event_type": "email-to-note",
+    "client_payload": {
+      "email": {
+        "subject": "Test Email",
+        "body": "Hello from the config UI!",
+        "from": "test@example.com",
+        "to": "notes@example.com",
+        "date": "${new Date().toISOString()}",
+        "attachments": []
+      }
+    }
+  }'
+
+# Expected: 204 No Content → check Actions tab`;
+    document.getElementById('output-curl').textContent = curlText;
+
+    goToStep(3);
+  }
+
+  // ── Tab switching ──
+  function switchTab(tab) {
+    document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.output-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.output-tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  // ── Clipboard ──
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg || 'Copied to clipboard!';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  function copySecrets() {
+    const text = document.getElementById('output-secrets').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('Secrets copied!'));
+  }
+
+  function copyCurl() {
+    const text = document.getElementById('output-curl').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('curl command copied!'));
+  }
+</script>
+
+</body>
+</html>

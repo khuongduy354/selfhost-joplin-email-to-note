@@ -1,0 +1,25 @@
+{
+  "name": "joplin-email-to-note",
+  "version": "1.0.0",
+  "description": "Self-hosted serverless service to forward emails to Joplin notes via cloud storage, powered by joplin-sync-lib",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project ./tsconfig.json",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "ts-node src/test.ts"
+  },
+  "keywords": ["joplin", "email", "notes", "sync", "serverless"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "joplin-sync": "file:../joplin-sync-lib",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.28",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2"
+  }
+}

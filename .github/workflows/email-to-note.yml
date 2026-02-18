@@ -1,0 +1,102 @@
+# =============================================================================
+# Joplin Email-to-Note — GitHub Actions Workflow
+# =============================================================================
+#
+# This workflow runs as a serverless function that receives email payloads
+# and creates Joplin notes in your cloud storage via joplin-sync-lib.
+#
+# TRIGGERS:
+#   1. repository_dispatch  — called from Google Apps Script or Zapier webhook
+#   2. workflow_dispatch     — manual trigger with JSON payload (testing)
+#   3. schedule              — optional: poll an email source on a cron
+#
+# SETUP:
+#   1. Fork/clone this repo to your GitHub account
+#   2. Go to Settings → Secrets → Actions
+#   3. Add secrets for your sync target (see below)
+#   4. Use the Config UI (docs/config-ui.html) to generate this file
+#
+# SECRETS NEEDED (depending on your sync target):
+#   SYNC_TARGET              — JoplinServer | WebDAV | OneDrive | GoogleDrive
+#   JOPLIN_SERVER_URL        — e.g. https://your-joplin-server.com
+#   JOPLIN_SERVER_USERNAME   — e.g. user@email.com
+#   JOPLIN_SERVER_PASSWORD   — your password
+#   WEBDAV_URL               — e.g. https://nextcloud.example.com/remote.php/dav/files/user/Joplin
+#   WEBDAV_USERNAME           
+#   WEBDAV_PASSWORD           
+#   ONEDRIVE_CLIENT_ID       
+#   ONEDRIVE_CLIENT_SECRET   
+#   ONEDRIVE_AUTH_TOKEN       
+#   GOOGLEDRIVE_CLIENT_ID    
+#   GOOGLEDRIVE_CLIENT_SECRET
+#   GOOGLEDRIVE_AUTH_TOKEN    
+#   JOPLIN_PARENT_FOLDER_ID  — (optional) target notebook ID
+# =============================================================================
+
+name: Email to Joplin Note
+
+on:
+  # Trigger 1: External webhook (Google Apps Script / Zapier / curl)
+  repository_dispatch:
+    types: [email-to-note]
+
+  # Trigger 2: Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      email_json:
+        description: 'Email payload as JSON string'
+        required: true
+        type: string
+
+  # Trigger 3: (Optional) Scheduled polling — uncomment if you want cron-based
+  # schedule:
+  #   - cron: '*/15 * * * *'  # Every 15 minutes
+
+jobs:
+  create-note:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Build
+        run: npm run build
+
+      - name: 📧 Process email → Joplin note
+        env:
+          SYNC_TARGET: ${{ secrets.SYNC_TARGET }}
+          JOPLIN_SERVER_URL: ${{ secrets.JOPLIN_SERVER_URL }}
+          JOPLIN_SERVER_USERNAME: ${{ secrets.JOPLIN_SERVER_USERNAME }}
+          JOPLIN_SERVER_PASSWORD: ${{ secrets.JOPLIN_SERVER_PASSWORD }}
+          WEBDAV_URL: ${{ secrets.WEBDAV_URL }}
+          WEBDAV_USERNAME: ${{ secrets.WEBDAV_USERNAME }}
+          WEBDAV_PASSWORD: ${{ secrets.WEBDAV_PASSWORD }}
+          ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_CLIENT_SECRET: ${{ secrets.ONEDRIVE_CLIENT_SECRET }}
+          ONEDRIVE_AUTH_TOKEN: ${{ secrets.ONEDRIVE_AUTH_TOKEN }}
+          GOOGLEDRIVE_CLIENT_ID: ${{ secrets.GOOGLEDRIVE_CLIENT_ID }}
+          GOOGLEDRIVE_CLIENT_SECRET: ${{ secrets.GOOGLEDRIVE_CLIENT_SECRET }}
+          GOOGLEDRIVE_AUTH_TOKEN: ${{ secrets.GOOGLEDRIVE_AUTH_TOKEN }}
+          JOPLIN_PARENT_FOLDER_ID: ${{ secrets.JOPLIN_PARENT_FOLDER_ID }}
+        run: npm start
+
+      - name: 📝 Summary
+        if: always()
+        run: |
+          echo "## 📧 Email to Joplin Note" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Note created successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed to create note." >> $GITHUB_STEP_SUMMARY
+          fi
