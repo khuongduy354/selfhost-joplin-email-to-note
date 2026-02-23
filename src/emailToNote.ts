@@ -5,12 +5,12 @@
  * and writes them to cloud storage via joplin-sync-lib's StorageAPI.
  */
 
-import { StorageAPI } from "joplin-sync";
 import {
+  StorageAPI,
   createNote,
   createResource,
   createFolder,
-} from "joplin-sync/dist/helpers/item";
+} from "joplin-sync";
 import { EmailPayload, ServiceConfig } from "./types";
 
 // ---------------------------------------------------------------------------
