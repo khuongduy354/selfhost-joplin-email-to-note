@@ -12,7 +12,12 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "joplin-sync": ["../joplin-sync-lib/dist/index"],
+      "joplin-sync/*": ["../joplin-sync-lib/dist/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
