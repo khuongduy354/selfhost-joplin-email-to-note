@@ -59,17 +59,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Build joplin-sync-lib
-        working-directory: joplin-sync-lib
-        run: npm install --ignore-scripts && npx tsc --project ./tsconfig.json --declaration
+      - name: Clone and build joplin-sync-lib
+        run: |
+          git clone https://github.com/khuongduy354/joplin-sync-lib.git ../joplin-sync-lib
+          cd ../joplin-sync-lib
+          npm install --ignore-scripts
+          npx tsc --project ./tsconfig.json --declaration
 
       - name: Install dependencies
         run: npm install --ignore-scripts
