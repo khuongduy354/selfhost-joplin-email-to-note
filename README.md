@@ -1,4 +1,5 @@
-# 📧 Joplin Self-hosted Email-to-Note
+# Joplin Self-hosted Email-to-Note
+> Experiemental: only WebDAV is currently tested.
 
 **Self-hosted, serverless email-to-Joplin using GitHub Actions + [joplin-sync-lib](https://github.com/khuongduy354/joplin-sync-lib).**
 
