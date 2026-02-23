@@ -1,0 +1,4 @@
+[submodule "joplin-sync-lib"]
+	path = joplin-sync-lib
+	url = https://github.com/khuongduy354/joplin-sync-lib.git
+	branch = read-only-api

@@ -22,14 +22,14 @@
 #   JOPLIN_SERVER_USERNAME   — e.g. user@email.com
 #   JOPLIN_SERVER_PASSWORD   — your password
 #   WEBDAV_URL               — e.g. https://nextcloud.example.com/remote.php/dav/files/user/Joplin
-#   WEBDAV_USERNAME           
-#   WEBDAV_PASSWORD           
-#   ONEDRIVE_CLIENT_ID       
-#   ONEDRIVE_CLIENT_SECRET   
-#   ONEDRIVE_AUTH_TOKEN       
-#   GOOGLEDRIVE_CLIENT_ID    
+#   WEBDAV_USERNAME
+#   WEBDAV_PASSWORD
+#   ONEDRIVE_CLIENT_ID
+#   ONEDRIVE_CLIENT_SECRET
+#   ONEDRIVE_AUTH_TOKEN
+#   GOOGLEDRIVE_CLIENT_ID
 #   GOOGLEDRIVE_CLIENT_SECRET
-#   GOOGLEDRIVE_AUTH_TOKEN    
+#   GOOGLEDRIVE_AUTH_TOKEN
 #   JOPLIN_PARENT_FOLDER_ID  — (optional) target notebook ID
 # =============================================================================
 
@@ -44,7 +44,7 @@ on:
   workflow_dispatch:
     inputs:
       email_json:
-        description: 'Email payload as JSON string'
+        description: "Email payload as JSON string"
         required: true
         type: string
 
@@ -57,19 +57,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
-      - name: 🏗️ Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: Build joplin-sync-lib
+        working-directory: joplin-sync-lib
+        run: npm install --ignore-scripts && npx tsc --project ./tsconfig.json --declaration
 
-      - name: 🔨 Build
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Build
         run: npm run build
 
       - name: 📧 Process email → Joplin note
