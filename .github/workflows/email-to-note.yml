@@ -65,7 +65,18 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ../joplin-sync-lib
+            node_modules
+            dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
       - name: Clone and build joplin-sync-lib
+        if: steps.cache-build.outputs.cache-hit != 'true'
         run: |
           git clone --branch read-only-api https://github.com/khuongduy354/joplin-sync-lib.git ../joplin-sync-lib
           cd ../joplin-sync-lib
@@ -73,15 +84,17 @@ jobs:
           npx tsc --project ./tsconfig.json --declaration
 
       - name: Install dependencies
+        if: steps.cache-build.outputs.cache-hit != 'true'
         run: |
           npm install --ignore-scripts
           rm -rf node_modules/joplin-sync
           ln -s $(cd ../joplin-sync-lib && pwd) node_modules/joplin-sync
 
       - name: Build
+        if: steps.cache-build.outputs.cache-hit != 'true'
         run: npm run build
 
-      - name: 📧 Process email → Joplin note
+      - name: Process email → Joplin note
         env:
           SYNC_TARGET: ${{ secrets.SYNC_TARGET }}
           JOPLIN_SERVER_URL: ${{ secrets.JOPLIN_SERVER_URL }}
@@ -99,10 +112,10 @@ jobs:
           JOPLIN_PARENT_FOLDER_ID: ${{ secrets.JOPLIN_PARENT_FOLDER_ID }}
         run: npm start
 
-      - name: 📝 Summary
+      - name: Summary
         if: always()
         run: |
-          echo "## 📧 Email to Joplin Note" >> $GITHUB_STEP_SUMMARY
+          echo "## Email to Joplin Note" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ job.status }}" = "success" ]; then
             echo "✅ Note created successfully!" >> $GITHUB_STEP_SUMMARY
