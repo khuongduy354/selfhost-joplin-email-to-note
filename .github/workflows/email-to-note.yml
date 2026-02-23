@@ -73,7 +73,10 @@ jobs:
           npx tsc --project ./tsconfig.json --declaration
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: |
+          npm install --ignore-scripts
+          rm -rf node_modules/joplin-sync
+          ln -s $(cd ../joplin-sync-lib && pwd) node_modules/joplin-sync
 
       - name: Build
         run: npm run build
