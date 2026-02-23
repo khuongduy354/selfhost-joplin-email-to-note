@@ -189,7 +189,15 @@ export async function emailToNote(
   items.push(note);
 
   // --- Push to cloud storage ---
-  await storage.createItems(items);
+  const result = await storage.createItems(items);
+
+  // Check for failures - never silently ignore them
+  if (result.failedItems && result.failedItems.length > 0) {
+    const errors = result.failedItems
+      .map((f: any) => `${f.item?.title || f.item?.id}: ${f.error?.message || 'Unknown error'}`)
+      .join('; ');
+    throw new Error(`Failed to create items: ${errors}`);
+  }
 
   console.log(`✅ Created note "${note.title}" (${note.id}) with ${resourceIds.length} attachment(s)`);
 
