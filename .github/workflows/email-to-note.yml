@@ -67,7 +67,7 @@ jobs:
 
       - name: Clone and build joplin-sync-lib
         run: |
-          git clone https://github.com/khuongduy354/joplin-sync-lib.git ../joplin-sync-lib
+          git clone --branch read-only-api https://github.com/khuongduy354/joplin-sync-lib.git ../joplin-sync-lib
           cd ../joplin-sync-lib
           npm install --ignore-scripts
           npx tsc --project ./tsconfig.json --declaration
