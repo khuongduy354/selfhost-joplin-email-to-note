@@ -70,25 +70,30 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ../joplin-sync-lib
+            .joplin-sync-lib
             node_modules
             dist
-          key: ${{ runner.os }}-build-${{ github.sha }}
+          key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json', 'src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
 
       - name: Clone and build joplin-sync-lib
         if: steps.cache-build.outputs.cache-hit != 'true'
         run: |
-          git clone --branch read-only-api https://github.com/khuongduy354/joplin-sync-lib.git ../joplin-sync-lib
-          cd ../joplin-sync-lib
+          git clone --branch read-only-api https://github.com/khuongduy354/joplin-sync-lib.git .joplin-sync-lib
+          cd .joplin-sync-lib
           npm install --ignore-scripts
           npx tsc --project ./tsconfig.json --declaration
 
       - name: Install dependencies
         if: steps.cache-build.outputs.cache-hit != 'true'
+        run: npm install --ignore-scripts
+
+      # Symlink must be re-created every run (symlinks don't survive caching)
+      - name: Link joplin-sync-lib
         run: |
-          npm install --ignore-scripts
           rm -rf node_modules/joplin-sync
-          ln -s $(cd ../joplin-sync-lib && pwd) node_modules/joplin-sync
+          ln -s $(cd .joplin-sync-lib && pwd) node_modules/joplin-sync
 
       - name: Build
         if: steps.cache-build.outputs.cache-hit != 'true'
